@@ -1,0 +1,4 @@
+pydantic-settings
+uvicorn[standard]
+python-dotenv
+fastapi
