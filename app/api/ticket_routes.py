@@ -1,7 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import get_db
+from app.core.exceptions import TicketNotFoundError
 from app.models.ticket import TicketPriority, TicketStatus
 from app.schemas.ticket_schema import (
     DeleteTicketResponse,
@@ -23,22 +26,27 @@ router = APIRouter(
     response_model=TicketResponse,
     status_code=status.HTTP_201_CREATED
 )
-def create_ticket(ticket_data: TicketCreate):
-    return ticket_service.create_ticket(ticket_data)
+async def create_ticket(
+    ticket_data: TicketCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    return await ticket_service.create_ticket(db, ticket_data)
 
 
 @router.get(
     "",
     response_model=list[TicketResponse]
 )
-def get_all_tickets(
+async def get_all_tickets(
     ticket_status: TicketStatus | None = Query(
         default=None,
         alias="status"
     ),
-    priority: TicketPriority | None = Query(default=None)
+    priority: TicketPriority | None = Query(default=None),
+    db: AsyncSession = Depends(get_db)
 ):
-    return ticket_service.get_all_tickets(
+    return await ticket_service.get_all_tickets(
+        db=db,
         ticket_status=ticket_status,
         priority=priority
     )
@@ -48,14 +56,14 @@ def get_all_tickets(
     "/{ticket_id}",
     response_model=TicketResponse
 )
-def get_ticket_by_id(ticket_id: UUID):
-    ticket = ticket_service.get_ticket_by_id(ticket_id)
+async def get_ticket_by_id(
+    ticket_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    ticket = await ticket_service.get_ticket_by_id(db, ticket_id)
 
     if ticket is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Ticket with ID {ticket_id} was not found"
-        )
+        raise TicketNotFoundError(str(ticket_id))
 
     return ticket
 
@@ -64,20 +72,15 @@ def get_ticket_by_id(ticket_id: UUID):
     "/{ticket_id}",
     response_model=TicketResponse
 )
-def update_ticket(
+async def update_ticket(
     ticket_id: UUID,
-    ticket_data: TicketUpdate
+    ticket_data: TicketUpdate,
+    db: AsyncSession = Depends(get_db)
 ):
-    updated_ticket = ticket_service.update_ticket(
-        ticket_id=ticket_id,
-        ticket_data=ticket_data
-    )
+    updated_ticket = await ticket_service.update_ticket(db, ticket_id, ticket_data)
 
     if updated_ticket is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Ticket with ID {ticket_id} was not found"
-        )
+        raise TicketNotFoundError(str(ticket_id))
 
     return updated_ticket
 
@@ -86,14 +89,14 @@ def update_ticket(
     "/{ticket_id}",
     response_model=DeleteTicketResponse
 )
-def delete_ticket(ticket_id: UUID):
-    deleted = ticket_service.delete_ticket(ticket_id)
+async def delete_ticket(
+    ticket_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    deleted = await ticket_service.delete_ticket(db, ticket_id)
 
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Ticket with ID {ticket_id} was not found"
-        )
+        raise TicketNotFoundError(str(ticket_id))
 
     return DeleteTicketResponse(
         message="Ticket deleted successfully",

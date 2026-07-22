@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Ticket CRUD API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = True
-    DATABASE_URL: str = "sqlite:///./tickets.db"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:1234@localhost:5432/ai_service_desk"
     SECRET_KEY: str = "secret_key"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 settings = Settings()

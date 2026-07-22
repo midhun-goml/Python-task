@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.ticket import TicketPriority, TicketStatus
 
@@ -25,6 +25,12 @@ class TicketCreate(BaseModel):
         examples=["high"]
     )
 
+    assignee_email: str | None = Field(
+        default=None,
+        max_length=256,
+        examples=["agent@example.com"]
+    )
+
 
 class TicketUpdate(BaseModel):
     title: str | None = Field(
@@ -40,14 +46,18 @@ class TicketUpdate(BaseModel):
 
     priority: TicketPriority | None = None
     status: TicketStatus | None = None
+    assignee_email: str | None = Field(default=None, max_length=254)
 
 
 class TicketResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     title: str
     description: str | None
     priority: TicketPriority
     status: TicketStatus
+    assignee_email: str | None
     created_at: datetime
     updated_at: datetime
 
