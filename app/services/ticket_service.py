@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
+from app.repositories.ticket_repositories import ticket_repository
 from app.schemas.ticket_schema import TicketCreate, TicketUpdate
 
 
@@ -23,11 +23,7 @@ class TicketService:
             updated_at=current_time
         )
 
-        db.add(new_ticket)
-        await db.flush()
-        await db.refresh(new_ticket)
-
-        return new_ticket
+        return await ticket_repository.create_ticket(db, new_ticket)
 
     async def get_all_tickets(
         self,
@@ -35,20 +31,14 @@ class TicketService:
         ticket_status: TicketStatus | None = None,
         priority: TicketPriority | None = None
     ) -> list[Ticket]:
-
-        query = select(Ticket)
-
-        if ticket_status is not None:
-            query = query.where(Ticket.status == ticket_status)
-
-        if priority is not None:
-            query = query.where(Ticket.priority == priority)
-
-        result = await db.execute(query)
-        return list(result.scalars().all())
+        return await ticket_repository.get_all_tickets(
+            db=db,
+            ticket_status=ticket_status,
+            priority=priority,
+        )
 
     async def get_ticket_by_id(self, db: AsyncSession, ticket_id: UUID) -> Ticket | None:
-        return await db.get(Ticket, ticket_id)
+        return await ticket_repository.get_ticket_by_id(db, ticket_id)
 
     async def update_ticket(
         self,
@@ -56,33 +46,10 @@ class TicketService:
         ticket_id: UUID,
         ticket_data: TicketUpdate
     ) -> Ticket | None:
-
-        existing_ticket = await db.get(Ticket, ticket_id)
-
-        if existing_ticket is None:
-            return None
-
-        update_values = ticket_data.model_dump(exclude_unset=True)
-
-        for field_name, field_value in update_values.items():
-            setattr(existing_ticket, field_name, field_value)
-
-        existing_ticket.updated_at = datetime.now(timezone.utc)
-        await db.flush()
-        await db.refresh(existing_ticket)
-
-        return existing_ticket
+        return await ticket_repository.update_ticket(db, ticket_id, ticket_data)
 
     async def delete_ticket(self, db: AsyncSession, ticket_id: UUID) -> bool:
-        existing_ticket = await db.get(Ticket, ticket_id)
-
-        if existing_ticket is None:
-            return False
-
-        await db.delete(existing_ticket)
-        await db.flush()
-
-        return True
+        return await ticket_repository.delete_ticket(db, ticket_id)
 
 
 ticket_service = TicketService()

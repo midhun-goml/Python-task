@@ -7,7 +7,7 @@ from sqlalchemy import pool
 
 from app.core.config import settings
 from app.models.base import Base
-from app.models.ticket import Ticket  # noqa: F401
+from app.models.ticket import Ticket 
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
