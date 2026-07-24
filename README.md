@@ -1,82 +1,414 @@
 # AI Service Desk
 
-## What was implemented
+An asynchronous **FastAPI-based REST API** for managing support tickets with AI-powered ticket summarization using **AWS Bedrock**. The project follows a layered architecture with SQLAlchemy Async ORM, PostgreSQL, Alembic migrations, and comprehensive unit testing.
 
-The app now uses PostgreSQL through SQLAlchemy async sessions, Alembic is bootstrapped, ticket responses can serialize ORM objects, and the API exposes health/readiness checks plus custom ticket-not-found handling.
+---
 
-## Step-by-step implementation
+## Features
 
-1. Define the database base.
-   - Create [app/models/base.py](app/models/base.py) with `DeclarativeBase`.
-   - Make every ORM model inherit from `Base`.
+- Create, Read, Update and Delete (CRUD) support tickets
+- AI-powered ticket summarization using AWS Bedrock
+- Async FastAPI application
+- PostgreSQL database with SQLAlchemy Async ORM
+- Alembic database migrations
+- Pydantic request and response validation
+- Response time middleware
+- Health and readiness endpoints
+- Unit testing using Pytest
+- Performance profiling using cProfile and Pyinstrument
+- Docker support
 
-2. Convert the ticket model to SQLAlchemy.
-   - Update [app/models/ticket.py](app/models/ticket.py).
-   - Keep `TicketPriority` and `TicketStatus` as restricted enums.
-   - Map the table name to `tickets`.
-   - Add `id`, `title`, `description`, `priority`, `status`, `assignee_email`, `created_at`, and `updated_at`.
+---
 
-3. Add PostgreSQL configuration.
-   - Update [app/core/config.py](app/core/config.py) so `DATABASE_URL` points to PostgreSQL with `postgresql+asyncpg://...`.
-   - Set the same URL in [.env](.env) for local runs.
+## Tech Stack
 
-4. Add async database helpers.
-   - Create [app/core/database.py](app/core/database.py) with `create_async_engine` and `AsyncSessionLocal`.
-   - Create [app/core/deps.py](app/core/deps.py) with `get_db()`.
-   - Commit after the request succeeds, roll back on exception, and always close the session.
+### Backend
 
-5. Add a custom domain exception.
-   - Create [app/core/exceptions.py](app/core/exceptions.py).
-   - Store the missing `ticket_id` as a string in `TicketNotFoundError`.
+- FastAPI
+- Python 3.11+
+- SQLAlchemy 2.0 (Async)
+- PostgreSQL
+- AsyncPG
 
-6. Update schemas for ORM response mapping.
-   - Update [app/schemas/ticket_schema.py](app/schemas/ticket_schema.py).
-   - Add `assignee_email` to create and update schemas.
-   - Add `model_config = ConfigDict(from_attributes=True)` to `TicketResponse`.
+### AI
 
-7. Move ticket CRUD to PostgreSQL.
-   - Refactor [app/services/ticket_service.py](app/services/ticket_service.py) to use `AsyncSession`.
-   - Replace the in-memory dictionary with SQLAlchemy CRUD calls.
-   - Use `db.add`, `db.get`, `select`, `db.delete`, `flush`, and `refresh`.
+- AWS Bedrock
+- Jinja2 Prompt Templates
 
-8. Wire the routes to database sessions.
-   - Update [app/api/ticket_routes.py](app/api/ticket_routes.py).
-   - Add `Depends(get_db)` to the ticket routes.
-   - Raise `TicketNotFoundError` instead of `HTTPException`.
+### Database
 
-9. Add middleware and system endpoints.
-   - Update [app/main.py](app/main.py).
-   - Record time before `call_next()`.
-   - Set `X-Response-Time` on every response.
-   - Add `GET /health` for liveness.
-   - Add `GET /ready` for database readiness using `SELECT 1`.
+- PostgreSQL
+- Alembic
 
-10. Bootstrap Alembic.
-    - Add [alembic.ini](alembic.ini).
-    - Add [alembic/env.py](alembic/env.py).
-    - Add [alembic/script.py.mako](alembic/script.py.mako).
-    - Add the revision [alembic/versions/0001_add_assignee_email.py](alembic/versions/0001_add_assignee_email.py).
+### Testing
 
-## Expected commands
+- Pytest
+- Pytest-Asyncio
+- FastAPI TestClient
 
-```powershell
-e:/GoML/Python_HandsOn/ai-service-desk/.venv/Scripts/python.exe -c "from app.models.ticket import Ticket; print(Ticket.__tablename__)"
-alembic revision --autogenerate -m "add_assignee_email"
+### Performance
+
+- cProfile
+- Pyinstrument
+- Locust
+
+### Deployment
+
+- Docker
+- Uvicorn
+
+---
+
+## Project Structure
+
+```text
+app/
+│
+├── api/
+│   ├── ai.py
+│   └── ticket_routes.py
+│
+├── core/
+│   ├── config.py
+│   ├── database.py
+│   ├── deps.py
+│   └── exceptions.py
+│
+├── models/
+│   └── ticket.py
+│
+├── repositories/
+│   └── ticket_repositories.py
+│
+├── schemas/
+│   └── ticket_schema.py
+│
+├── services/
+│   ├── bedrock_service.py
+│   ├── prompt_templates.py
+│   └── ticket_service.py
+│
+├── main.py
+│
+tests/
+│
+├── test_ticket_create.py
+├── test_ticket_get.py
+├── test_ticket_update.py
+├── test_ticket_delete.py
+└── conftest.py
+│
+alembic/
+Dockerfile
+requirements.txt
+README.md
+```
+
+---
+
+## Architecture
+
+```
+                Client
+                   │
+                   ▼
+           FastAPI Routes
+                   │
+                   ▼
+            Service Layer
+                   │
+                   ▼
+          Repository Layer
+                   │
+                   ▼
+      SQLAlchemy Async ORM
+                   │
+                   ▼
+             PostgreSQL
+```
+
+### AI Summarization Flow
+
+```
+Client
+   │
+   ▼
+POST /ai/summarize
+   │
+   ▼
+Bedrock Service
+   │
+   ▼
+Jinja2 Prompt Template
+   │
+   ▼
+AWS Bedrock
+   │
+   ▼
+Generated Summary
+```
+
+---
+
+# API Endpoints
+
+## Tickets
+
+| Method | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/tickets` | Create a ticket |
+| GET | `/tickets` | Get all tickets |
+| GET | `/tickets/{id}` | Get ticket by ID |
+| PUT | `/tickets/{id}` | Update ticket |
+| DELETE | `/tickets/{id}` | Delete ticket |
+
+---
+
+## AI
+
+| Method | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/ai/summarize` | Generate ticket summary |
+
+---
+
+## Health Checks
+
+| Method | Endpoint |
+|---------|----------|
+| GET | `/health` |
+| GET | `/ready` |
+
+---
+
+# Ticket Schema
+
+```json
+{
+    "title": "Unable to login",
+    "description": "User cannot login using company credentials.",
+    "priority": "high",
+    "assignee_email": "agent@example.com"
+}
+```
+
+---
+
+# Validation Rules
+
+| Field | Rule |
+|--------|------|
+| title | Required, max 200 characters |
+| description | Optional, max 500 characters |
+| priority | low, medium, high, critical |
+| status | open, in_progress, resolved, closed |
+| assignee_email | Valid email address |
+
+---
+
+# Installation
+
+Clone the repository
+
+```bash
+git clone <repository-url>
+
+cd ai-service-desk
+```
+
+Create a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+Activate it
+
+Windows
+
+```bash
+.venv\Scripts\activate
+```
+
+Linux / macOS
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# Environment Variables
+
+Create a `.env` file.
+
+```env
+DATABASE_URL=
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=
+BEDROCK_MODEL_ID=
+
+SECRET_KEY=
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+DEBUG=True
+APP_NAME=AI Service Desk
+APP_VERSION=1.0
+```
+
+---
+
+# Database Migration
+
+Create migration
+
+```bash
+alembic revision --autogenerate -m "Initial migration"
+```
+
+Apply migration
+
+```bash
 alembic upgrade head
+```
+
+Rollback
+
+```bash
 alembic downgrade -1
-alembic upgrade head
+```
+
+---
+
+# Run the Application
+
+```bash
 uvicorn app.main:app --reload
 ```
 
-## Migration note
+Application
 
-If `status` were renamed to `ticket_status` instead of adding `assignee_email`, Alembic would usually interpret that as a drop plus add, not a rename. The safe manual fix would be to edit the revision to perform a rename or a batch table alteration, depending on the database backend.
+```
+http://localhost:8000
+```
 
-## Health and readiness
+Swagger UI
 
-- `GET /health` is the fast liveness route.
-- `GET /ready` checks PostgreSQL connectivity.
+```
+http://localhost:8000/docs
+```
 
-## Response timing
+ReDoc
 
-- Every response now includes `X-Response-Time`.
+```
+http://localhost:8000/redoc
+```
+
+---
+
+# Running Tests
+
+Run all tests
+
+```bash
+pytest
+```
+
+Run with coverage
+
+```bash
+pytest --cov=app
+```
+
+---
+
+# Performance Testing
+
+## cProfile
+
+```bash
+python profile_test.py
+```
+
+## Pyinstrument
+
+```bash
+pyinstrument app/main.py
+```
+
+## Locust
+
+```bash
+locust
+```
+
+---
+
+# Docker
+
+Build
+
+```bash
+docker build -t ai-service-desk .
+```
+
+Run
+
+```bash
+docker run -p 8000:8000 ai-service-desk
+```
+
+---
+
+# Error Handling
+
+- HTTP 422 – Validation Errors
+- HTTP 404 – Ticket Not Found
+- HTTP 500 – Internal Server Error
+
+---
+
+# Future Improvements
+
+- JWT Authentication
+- Role-Based Access Control (RBAC)
+- User Management
+- Email Notifications
+- Pagination
+- Search and Sorting
+- Redis Caching
+- Background Tasks
+- Kubernetes Deployment
+- CI/CD Pipeline
+
+---
+
+# Performance
+
+Typical response times observed during development:
+
+| Operation | Time |
+|------------|------|
+| Create Ticket | ~200–250 ms |
+| List Tickets | ~20–50 ms |
+| Get Ticket | ~5 ms |
+| Update Ticket | ~15 ms |
+| Delete Ticket | ~10 ms |
+
+---
+
+# Author
+
+**Midhun K**
+
+AI Service Desk Project
+
+---

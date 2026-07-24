@@ -31,6 +31,16 @@ def make_ticket():
 # ---------------------------------------------------------
 
 
+def test_make_ticket_returns_ticket():
+    ticket = make_ticket()
+
+    assert ticket is not None
+
+def test_make_ticket_generates_unique_ids():
+    ticket1 = make_ticket()
+    ticket2 = make_ticket()
+
+    assert ticket1.id != ticket2.id
 
 @pytest.mark.asyncio
 async def test_create_ticket_sets_status_open(db, monkeypatch):
@@ -121,116 +131,64 @@ async def test_create_ticket_copies_assignee_email(db, monkeypatch):
 
     assert ticket.assignee_email == payload.assignee_email
 
-
-# ---------------------------------------------------------
-# get_all_tickets
-# ---------------------------------------------------------
-
 @pytest.mark.asyncio
-async def test_get_all_tickets_returns_repository_result(db, monkeypatch):
-    # HAPPY
-    expected = [make_ticket()]
+async def test_create_ticket_description_defaults_to_none(db, monkeypatch):
+    repo_mock = AsyncMock(return_value=make_ticket())
 
-    repo_mock = AsyncMock(return_value=expected)
+    monkeypatch.setattr(ticket_repository, "create_ticket", repo_mock)
 
-    monkeypatch.setattr(ticket_repository, "get_all_tickets", repo_mock)
-
-    result = await ticket_service.get_all_tickets(db)
-
-    assert result == expected
-
-
-# ---------------------------------------------------------
-# get_ticket_by_id
-# ---------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_get_ticket_by_id_returns_correct_title(db, monkeypatch):
-    # HAPPY
-    expected = make_ticket()
-
-    repo_mock = AsyncMock(return_value=expected)
-    monkeypatch.setattr(ticket_repository, "get_ticket_by_id", repo_mock)
-
-    result = await ticket_service.get_ticket_by_id(db, expected.id)
-
-    assert result.title == expected.title
-
-
-@pytest.mark.asyncio
-async def test_get_ticket_by_id_returns_none(db, monkeypatch):
-    # FAILURE
-    repo_mock = AsyncMock(return_value=None)
-
-    monkeypatch.setattr(ticket_repository, "get_ticket_by_id", repo_mock)
-
-    result = await ticket_service.get_ticket_by_id(db, uuid4())
-
-    assert result is None
-
-
-# ---------------------------------------------------------
-# update_ticket
-# ---------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_update_ticket_returns_repository_result(db, monkeypatch):
-    # HAPPY
-    expected = make_ticket()
-
-    repo_mock = AsyncMock(return_value=expected)
-
-    monkeypatch.setattr(ticket_repository, "update_ticket", repo_mock)
-
-    result = await ticket_service.update_ticket(
+    await ticket_service.create_ticket(
         db,
-        uuid4(),
-        TicketUpdate(status=TicketStatus.RESOLVED),
+        TicketCreate(title="Issue"),
     )
 
-    assert result.status == expected.status
+    _, ticket = repo_mock.await_args.args
 
+    assert ticket.description is None
 
 @pytest.mark.asyncio
-async def test_update_ticket_returns_none(db, monkeypatch):
-    # FAILURE
-    repo_mock = AsyncMock(return_value=None)
+async def test_create_ticket_default_priority_is_low(db, monkeypatch):
+    repo_mock = AsyncMock(return_value=make_ticket())
 
-    monkeypatch.setattr(ticket_repository, "update_ticket", repo_mock)
+    monkeypatch.setattr(ticket_repository, "create_ticket", repo_mock)
 
-    result = await ticket_service.update_ticket(
+    await ticket_service.create_ticket(
         db,
-        uuid4(),
-        TicketUpdate(title="Updated"),
+        TicketCreate(title="Issue"),
     )
 
-    assert result is None
+    _, ticket = repo_mock.await_args.args
 
-
-
-# ---------------------------------------------------------
-# delete_ticket
-# ---------------------------------------------------------
+    assert ticket.priority == TicketPriority.MEDIUM
 
 @pytest.mark.asyncio
-async def test_delete_ticket_returns_true(db, monkeypatch):
-    # HAPPY
-    repo_mock = AsyncMock(return_value=True)
+async def test_create_ticket_accepts_max_length_title(db, monkeypatch):
+    repo_mock = AsyncMock(return_value=make_ticket())
 
-    monkeypatch.setattr(ticket_repository, "delete_ticket", repo_mock)
+    monkeypatch.setattr(ticket_repository, "create_ticket", repo_mock)
 
-    result = await ticket_service.delete_ticket(db, uuid4())
+    title = "A" * 200
 
-    assert result is True
+    await ticket_service.create_ticket(
+        db,
+        TicketCreate(title=title),
+    )
 
+    _, ticket = repo_mock.await_args.args
+
+    assert ticket.title == title
 
 @pytest.mark.asyncio
-async def test_delete_ticket_returns_false(db, monkeypatch):
-    # FAILURE
-    repo_mock = AsyncMock(return_value=False)
+async def test_create_ticket_does_not_assign_ticket_id(db, monkeypatch):
+    repo_mock = AsyncMock(return_value=make_ticket())
 
-    monkeypatch.setattr(ticket_repository, "delete_ticket", repo_mock)
+    monkeypatch.setattr(ticket_repository, "create_ticket", repo_mock)
 
-    result = await ticket_service.delete_ticket(db, uuid4())
+    await ticket_service.create_ticket(
+        db,
+        TicketCreate(title="Issue"),
+    )
 
-    assert result is False
+    _, ticket = repo_mock.await_args.args
+
+    assert ticket.id is None

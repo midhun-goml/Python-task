@@ -12,7 +12,11 @@ from app.core.exceptions import TicketNotFoundError
 from app.models.base import Base
 
 from fastapi.middleware.cors import CORSMiddleware
- 
+from pyinstrument import Profiler
+
+import cProfile
+import io
+import pstats
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -60,11 +64,11 @@ def home():
 
 @app.get("/health", tags=["System"])
 async def health():
-    return {"status": "ok"}
+    async with engine.connect() as connection:
+        await connection.execute(text("SELECT 1"))
+    return {"status": "ok + database connection successful"}
 
 
 @app.get("/ready", tags=["System"])
 async def ready():
-    async with engine.connect() as connection:
-        await connection.execute(text("SELECT 1"))
     return {"status": "ready"}

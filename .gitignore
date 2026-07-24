@@ -49,3 +49,8 @@ Thumbs.db
 
 # Python version management
 .python-version
+
+
+# Profiling results
+profiles/
+*.prof
