@@ -16,7 +16,7 @@ class TicketCreate(BaseModel):
 
     description: str | None = Field(
         default=None,
-        max_length=500,
+        max_length=1000,
         examples=["Users are unable to log in"]
     )
 
@@ -65,3 +65,11 @@ class TicketResponse(BaseModel):
 class DeleteTicketResponse(BaseModel):
     message: str
     ticket_id: UUID
+
+class SummarizeRequest(BaseModel):
+    ticket_description: str = Field(min_length=10, max_length=5_000)
+ 
+ 
+class SummarizeResponse(BaseModel):
+    summary: str
+    suggested_response: str

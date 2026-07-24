@@ -18,7 +18,7 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "tickets",
-        sa.Column("assignee_email", sa.String(length=254), nullable=True),
+        sa.Column("assignee_email", sa.String(length=250), nullable=True),
     )
 
 

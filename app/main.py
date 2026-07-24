@@ -4,12 +4,15 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.api.ai import router as ai_router
 from app.api.ticket_routes import router as ticket_router
 from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import TicketNotFoundError
 from app.models.base import Base
 
+from fastapi.middleware.cors import CORSMiddleware
+ 
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -20,7 +23,7 @@ app = FastAPI(
 
 
 app.include_router(ticket_router)
-
+app.include_router(ai_router)
 
 @app.middleware("http")
 async def add_response_time_header(request: Request, call_next):
@@ -30,6 +33,13 @@ async def add_response_time_header(request: Request, call_next):
     response.headers["X-Response-Time"] = f"{elapsed_ms:.0f}ms"
     return response
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.exception_handler(TicketNotFoundError)
 async def ticket_not_found_handler(_: Request, exc: TicketNotFoundError):
